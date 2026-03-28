@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Binance Futures Testnet — Trading Bot UI</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #0d0f12;
+      --bg-secondary: #13161b;
+      --bg-card: #181c23;
+      --bg-input: #1c2028;
+      --border: #2a2f3a;
+      --border-focus: #3d4455;
+      --text-primary: #e8eaf0;
+      --text-secondary: #8b90a0;
+      --text-muted: #555b6e;
+      --green: #3fb950;
+      --green-bg: #0d2318;
+      --green-border: #1a4a2e;
+      --red: #f85149;
+      --red-bg: #250d0d;
+      --red-border: #4a1a1a;
+      --amber: #d29922;
+      --amber-bg: #1f1800;
+      --blue: #58a6ff;
+      --blue-bg: #0d1f36;
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+      --radius: 6px;
+      --radius-lg: 10px;
+    }
+
+    body {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────── */
+    .app-wrapper { max-width: 1100px; margin: 0 auto; }
+
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 18px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      border-bottom: none;
+    }
+
+    .topbar-left { display: flex; align-items: center; gap: 14px; }
+    .dots { display: flex; gap: 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ff5f57; }
+    .dot-a { background: #febc2e; }
+    .dot-g { background: #28c840; }
+
+    .app-title { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; color: var(--text-secondary); text-transform: uppercase; }
+
+    .status-badge {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 10px;
+      border: 1px solid var(--green-border);
+      border-radius: 20px;
+      background: var(--green-bg);
+      font-size: 10px; color: var(--green); letter-spacing: 0.08em;
+    }
+    .pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
+
+    .terminal {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      min-height: 580px;
+      overflow: hidden;
+    }
+
+    /* ── Left Panel ──────────────────────────────────────────────── */
+    .left-panel { padding: 22px; border-right: 1px solid var(--border); }
+
+    .section-label {
+      font-size: 9px; font-weight: 600; letter-spacing: 0.15em;
+      text-transform: uppercase; color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .symbol-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
+
+    .symbol-btn {
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .symbol-btn:hover { border-color: var(--border-focus); color: var(--text-primary); }
+    .symbol-btn.active { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
+
+    .price-display { display: flex; align-items: baseline; gap: 12px; margin-bottom: 24px; }
+    .price-main { font-size: 36px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+    .price-change { font-size: 13px; font-weight: 600; padding: 3px 9px; border-radius: var(--radius); }
+    .price-change.up   { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+    .price-change.down { background: var(--red-bg);   color: var(--red);   border: 1px solid var(--red-border); }
+
+    .order-type-tabs {
+      display: flex; margin-bottom: 20px;
+      border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+    }
+    .tab-btn {
+      flex: 1; padding: 9px;
+      background: transparent; border: none;
+      font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+    }
+    .tab-btn + .tab-btn { border-left: 1px solid var(--border); }
+    .tab-btn.active { background: var(--bg-card); color: var(--text-primary); }
+    .tab-btn:hover:not(.active) { color: var(--text-secondary); }
+
+    .side-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .side-btn {
+      padding: 11px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      background: transparent; color: var(--text-muted);
+      font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .side-btn.buy.active  { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+    .side-btn.sell.active { background: var(--red-bg);   border-color: var(--red);   color: var(--red); }
+
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block; font-size: 9px; font-weight: 600;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 6px;
+    }
+    .field input, .field select {
+      width: 100%; padding: 9px 12px;
+      background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text-primary);
+      font-family: var(--font-mono); font-size: 13px;
+      outline: none; transition: border-color 0.15s;
+    }
+    .field input:focus, .field select:focus { border-color: var(--border-focus); }
+    .field input.err { border-color: var(--red) !important; }
+    .field-hint { font-size: 10px; color: var(--text-muted); margin-top: 5px; }
+    .field-err  { font-size: 10px; color: var(--red); margin-top: 5px; display: none; }
+
+    .order-summary {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px 14px;
+      margin-bottom: 14px; display: none;
+    }
+    .order-summary.visible { display: block; }
+    .summary-row {
+      display: flex; justify-content: space-between;
+      padding: 4px 0; font-size: 11px; color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-row span:last-child { color: var(--text-primary); font-weight: 600; }
+
+    .submit-btn {
+      width: 100%; padding: 13px;
+      border: none; border-radius: var(--radius);
+      font-family: var(--font-mono); font-size: 12px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .submit-btn.buy  { background: var(--green); color: #000; }
+    .submit-btn.buy:hover  { background: #4fd060; }
+    .submit-btn.sell { background: var(--red); color: #fff; }
+    .submit-btn.sell:hover { background: #ff6b62; }
+    .submit-btn:active { transform: scale(0.98); }
+
+    /* ── Right Panel ─────────────────────────────────────────────── */
+    .right-panel { padding: 22px; display: flex; flex-direction: column; gap: 18px; }
+
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 10px 12px;
+    }
+    .stat-card .slabel { font-size: 9px; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 5px; }
+    .stat-card .sval   { font-size: 16px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+    .stat-card .sval.green { color: var(--green); }
+    .stat-card .sval.red   { color: var(--red); }
+
+    .orders-wrap { overflow-x: auto; }
+    .orders-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .orders-table th {
+      text-align: left; padding: 5px 7px;
+      font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text-muted); font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+    .orders-table td { padding: 6px 7px; color: var(--text-secondary); border-bottom: 1px solid var(--border); }
+    .orders-table tr:last-child td { border-bottom: none; }
+
+    .badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+    .badge-buy    { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+    .badge-sell   { background: var(--red-bg);   color: var(--red);   border: 1px solid var(--red-border); }
+    .badge-filled { background: var(--green-bg); color: var(--green); }
+    .badge-new    { background: var(--amber-bg); color: var(--amber); }
+    .badge-canceled { background: var(--bg-input); color: var(--text-muted); }
+
+    .log-box {
+      flex: 1; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 10px;
+      overflow-y: auto; max-height: 180px; min-height: 80px;
+    }
+    .log-entry { display: flex; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--border); font-size: 10px; }
+    .log-entry:last-child { border-bottom: none; }
+    .log-ts  { color: var(--text-muted); flex-shrink: 0; }
+    .log-entry.ok   .log-msg { color: var(--green); }
+    .log-entry.err  .log-msg { color: var(--red); }
+    .log-entry.info .log-msg { color: var(--text-secondary); }
+
+    /* ── Toast ───────────────────────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      padding: 11px 18px; border-radius: var(--radius);
+      font-size: 12px; font-weight: 600; font-family: var(--font-mono);
+      border: 1px solid; opacity: 0; transition: opacity 0.25s;
+      pointer-events: none; z-index: 9999;
+    }
+    .toast.ok  { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+    .toast.err { background: var(--red-bg);   border-color: var(--red);   color: var(--red); }
+    .toast.show { opacity: 1; }
+
+    /* ── API Config Modal ────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000;
+    }
+    .modal {
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 28px; width: 420px; max-width: 95vw;
+    }
+    .modal h2 { font-size: 14px; font-weight: 700; margin-bottom: 6px; color: var(--text-primary); }
+    .modal p  { font-size: 11px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6; }
+    .modal-btn {
+      width: 100%; padding: 11px; margin-top: 8px;
+      border: none; border-radius: var(--radius);
+      background: var(--blue); color: #000;
+      font-family: var(--font-mono); font-size: 12px; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .modal-btn:hover { background: #79bcff; }
+    .modal-skip {
+      width: 100%; padding: 9px; margin-top: 6px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      background: transparent; color: var(--text-muted);
+      font-family: var(--font-mono); font-size: 11px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .modal-skip:hover { color: var(--text-secondary); border-color: var(--border-focus); }
+
+    .config-btn {
+      padding: 5px 12px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      background: transparent; color: var(--text-muted);
+      font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+      letter-spacing: 0.06em; cursor: pointer; transition: all 0.15s;
+    }
+    .config-btn:hover { color: var(--text-primary); border-color: var(--border-focus); }
+  </style>
+</head>
+<body>
+
+<!-- API Config Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2>Connect to Testnet</h2>
+    <p>Enter your Binance Futures Testnet API credentials.<br>
+       These are stored only in your browser session — never sent anywhere except <code>testnet.binancefuture.com</code>.</p>
+    <div class="field">
+      <label>API Key</label>
+      <input type="text" id="cfg-key" placeholder="Paste your testnet API key…" autocomplete="off" />
+    </div>
+    <div class="field">
+      <label>API Secret</label>
+      <input type="password" id="cfg-secret" placeholder="Paste your testnet API secret…" autocomplete="off" />
+    </div>
+    <button class="modal-btn" onclick="saveConfig()">Connect</button>
+    <button class="modal-skip" onclick="closeModal()">Use demo mode (simulated orders)</button>
+  </div>
+</div>
+
+<div class="app-wrapper">
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="dots">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-a"></div>
+        <div class="dot dot-g"></div>
+      </div>
+      <span class="app-title">Futures Terminal — Testnet</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="status-badge"><div class="pulse"></div> <span>USDT-M Testnet</span></div>
+      <button class="config-btn" onclick="openModal()">⚙ Config</button>
+    </div>
+  </div>
+
+  <!-- Main terminal grid -->
+  <div class="terminal">
+
+    <!-- LEFT: order panel -->
+    <div class="left-panel">
+
+      <div class="section-label">Symbol</div>
+      <div class="symbol-row">
+        <button class="symbol-btn active" onclick="selectSymbol(this,'BTCUSDT',84312.10,2.34)">BTCUSDT</button>
+        <button class="symbol-btn" onclick="selectSymbol(this,'ETHUSDT',3210.45,-1.12)">ETHUSDT</button>
+        <button class="symbol-btn" onclick="selectSymbol(this,'SOLUSDT',142.80,0.87)">SOLUSDT</button>
+        <button class="symbol-btn" onclick="selectSymbol(this,'BNBUSDT',598.20,-0.44)">BNBUSDT</button>
+      </div>
+
+      <div class="price-display">
+        <span class="price-main" id="price-main">84,312.10</span>
+        <span class="price-change up" id="price-change">+2.34%</span>
+      </div>
+
+      <div class="section-label">Order type</div>
+      <div class="order-type-tabs">
+        <button class="tab-btn active" onclick="selectType(this,'MARKET')">Market</button>
+        <button class="tab-btn" onclick="selectType(this,'LIMIT')">Limit</button>
+        <button class="tab-btn" onclick="selectType(this,'STOP_MARKET')">Stop</button>
+      </div>
+
+      <div class="side-toggle">
+        <button class="side-btn buy active" onclick="selectSide(this,'BUY')">Buy / Long</button>
+        <button class="side-btn sell" onclick="selectSide(this,'SELL')">Sell / Short</button>
+      </div>
+
+      <div class="field">
+        <label>Quantity</label>
+        <input type="number" id="qty" placeholder="0.000" step="0.001" min="0.001" oninput="updateSummary()" />
+        <div class="field-hint" id="qty-hint">Min: 0.001 BTC</div>
+        <div class="field-err" id="qty-err">Enter a valid quantity greater than 0</div>
+      </div>
+
+      <div class="field" id="price-field" style="display:none">
+        <label>Limit price (USDT)</label>
+        <input type="number" id="limit-price" placeholder="0.00" step="0.01" min="0" oninput="updateSummary()" />
+        <div class="field-err" id="price-err">Enter a valid limit price</div>
+      </div>
+
+      <div class="field" id="stop-field" style="display:none">
+        <label>Stop price (USDT)</label>
+        <input type="number" id="stop-price" placeholder="0.00" step="0.01" min="0" oninput="updateSummary()" />
+        <div class="field-err" id="stop-err">Enter a valid stop price</div>
+      </div>
+
+      <div class="order-summary" id="order-summary">
+        <div class="summary-row"><span>Symbol</span><span id="s-sym">—</span></div>
+        <div class="summary-row"><span>Side</span><span id="s-side">—</span></div>
+        <div class="summary-row"><span>Type</span><span id="s-type">—</span></div>
+        <div class="summary-row"><span>Quantity</span><span id="s-qty">—</span></div>
+        <div class="summary-row" id="s-price-row" style="display:none"><span>Limit price</span><span id="s-price">—</span></div>
+        <div class="summary-row" id="s-stop-row"  style="display:none"><span>Stop price</span><span id="s-stop">—</span></div>
+        <div class="summary-row" id="s-est-row"><span>Est. Value</span><span id="s-est">—</span></div>
+      </div>
+
+      <button class="submit-btn buy" id="submit-btn" onclick="submitOrder()">Place Buy Order</button>
+    </div>
+
+    <!-- RIGHT: stats + log -->
+    <div class="right-panel">
+
+      <div>
+        <div class="section-label">Account</div>
+        <div class="stat-grid">
+          <div class="stat-card"><div class="slabel">Wallet</div><div class="sval">$10,000</div></div>
+          <div class="stat-card"><div class="slabel">Unrealized PnL</div><div class="sval green" id="upnl">+$0.00</div></div>
+          <div class="stat-card"><div class="slabel">Open Orders</div><div class="sval" id="open-count">0</div></div>
+          <div class="stat-card"><div class="slabel">Fills Today</div><div class="sval" id="fill-count">0</div></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Order history</div>
+        <div class="orders-wrap">
+          <table class="orders-table">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Side</th>
+                <th>Type</th>
+                <th>Qty</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="orders-tbody">
+              <tr><td colspan="5" style="color:var(--text-muted);text-align:center;padding:14px;font-size:10px;">No orders yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="flex:1;display:flex;flex-direction:column;">
+        <div class="section-label">Activity log</div>
+        <div class="log-box" id="log-box">
+          <div class="log-entry info">
+            <span class="log-ts" id="init-ts"></span>
+            <span class="log-msg">Terminal initialised — testnet mode</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  /* ── State ───────────────────────────────────────────────────── */
+  const state = {
+    symbol: 'BTCUSDT', price: 84312.10, change: 2.34,
+    side: 'BUY', type: 'MARKET',
+    orders: [], fillCount: 0, openCount: 0, upnl: 0,
+    apiKey: '', apiSecret: '', demoMode: true
+  };
+
+  const prices = {
+    BTCUSDT: { p: 84312.10, c: 2.34 },
+    ETHUSDT: { p: 3210.45,  c: -1.12 },
+    SOLUSDT: { p: 142.80,   c: 0.87 },
+    BNBUSDT: { p: 598.20,   c: -0.44 }
+  };
+
+  const minQty = { BTCUSDT:'0.001 BTC', ETHUSDT:'0.01 ETH', SOLUSDT:'0.1 SOL', BNBUSDT:'0.01 BNB' };
+
+  /* ── Helpers ─────────────────────────────────────────────────── */
+  function ts() { return new Date().toTimeString().slice(0,8); }
+  document.getElementById('init-ts').textContent = ts();
+
+  function fmt(n, dp=2) { return Number(n).toLocaleString('en-US',{minimumFractionDigits:dp,maximumFractionDigits:dp}); }
+
+  /* ── Modal ───────────────────────────────────────────────────── */
+  function openModal()  { document.getElementById('modal').style.display = 'flex'; }
+  function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+  function saveConfig() {
+    const k = document.getElementById('cfg-key').value.trim();
+    const s = document.getElementById('cfg-secret').value.trim();
+    if (!k || !s) { showToast('Both API key and secret are required', 'err'); return; }
+    state.apiKey = k; state.apiSecret = s; state.demoMode = false;
+    closeModal();
+    addLog('ok', 'API credentials saved — live testnet mode active');
+    showToast('Connected to testnet', 'ok');
+  }
+
+  /* ── Symbol / side / type selectors ─────────────────────────── */
+  function selectSymbol(el, sym, price, change) {
+    document.querySelectorAll('.symbol-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    state.symbol = sym; state.price = price; state.change = change;
+    prices[sym] = { p: price, c: change };
+    document.getElementById('price-main').textContent = fmt(price);
+    const pc = document.getElementById('price-change');
+    pc.textContent = (change >= 0 ? '+' : '') + change.toFixed(2) + '%';
+    pc.className = 'price-change ' + (change >= 0 ? 'up' : 'down');
+    document.getElementById('qty-hint').textContent = 'Min: ' + (minQty[sym] || '—');
+    updateSummary();
+    addLog('info', 'Symbol → ' + sym + '  @  $' + fmt(price));
+  }
+
+  function selectType(el, type) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active'); state.type = type;
+    document.getElementById('price-field').style.display = type === 'LIMIT'       ? 'block' : 'none';
+    document.getElementById('stop-field').style.display  = type === 'STOP_MARKET' ? 'block' : 'none';
+    updateSummary();
+  }
+
+  function selectSide(el, side) {
+    document.querySelectorAll('.side-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active'); state.side = side;
+    const btn = document.getElementById('submit-btn');
+    btn.className = 'submit-btn ' + side.toLowerCase();
+    btn.textContent = 'Place ' + (side === 'BUY' ? 'Buy' : 'Sell') + ' Order';
+    updateSummary();
+  }
+
+  /* ── Summary preview ─────────────────────────────────────────── */
+  function updateSummary() {
+    const qty = parseFloat(document.getElementById('qty').value);
+    const box = document.getElementById('order-summary');
+    if (!qty || qty <= 0) { box.classList.remove('visible'); return; }
+    box.classList.add('visible');
+    document.getElementById('s-sym').textContent  = state.symbol;
+    document.getElementById('s-side').textContent = state.side;
+    document.getElementById('s-type').textContent = state.type;
+    document.getElementById('s-qty').textContent  = qty;
+    const lp = parseFloat(document.getElementById('limit-price').value);
+    const sp = parseFloat(document.getElementById('stop-price').value);
+    document.getElementById('s-price-row').style.display = 'none';
+    document.getElementById('s-stop-row').style.display  = 'none';
+    if (state.type === 'LIMIT' && lp > 0) {
+      document.getElementById('s-price-row').style.display = 'flex';
+      document.getElementById('s-price').textContent = '$' + fmt(lp);
+      document.getElementById('s-est').textContent   = '~$' + fmt(qty * lp);
+    } else if (state.type === 'MARKET') {
+      document.getElementById('s-est').textContent = '~$' + fmt(qty * state.price);
+    } else if (state.type === 'STOP_MARKET' && sp > 0) {
+      document.getElementById('s-stop-row').style.display = 'flex';
+      document.getElementById('s-stop').textContent = '$' + fmt(sp);
+      document.getElementById('s-est').textContent  = '~$' + fmt(qty * sp);
+    }
+  }
+
+  /* ── Validation ──────────────────────────────────────────────── */
+  function validate() {
+    let ok = true;
+    const qty = parseFloat(document.getElementById('qty').value);
+    if (!qty || qty <= 0) {
+      document.getElementById('qty').classList.add('err');
+      document.getElementById('qty-err').style.display = 'block'; ok = false;
+    } else {
+      document.getElementById('qty').classList.remove('err');
+      document.getElementById('qty-err').style.display = 'none';
+    }
+    if (state.type === 'LIMIT') {
+      const lp = parseFloat(document.getElementById('limit-price').value);
+      if (!lp || lp <= 0) {
+        document.getElementById('limit-price').classList.add('err');
+        document.getElementById('price-err').style.display = 'block'; ok = false;
+      } else {
+        document.getElementById('limit-price').classList.remove('err');
+        document.getElementById('price-err').style.display = 'none';
+      }
+    }
+    if (state.type === 'STOP_MARKET') {
+      const sp = parseFloat(document.getElementById('stop-price').value);
+      if (!sp || sp <= 0) {
+        document.getElementById('stop-price').classList.add('err');
+        document.getElementById('stop-err').style.display = 'block'; ok = false;
+      } else {
+        document.getElementById('stop-price').classList.remove('err');
+        document.getElementById('stop-err').style.display = 'none';
+      }
+    }
+    return ok;
+  }
+
+  /* ── Submit order ────────────────────────────────────────────── */
+  async function submitOrder() {
+    if (!validate()) { showToast('Fix validation errors before placing order', 'err'); return; }
+
+    const qty       = parseFloat(document.getElementById('qty').value);
+    const limitPrice = state.type === 'LIMIT'       ? parseFloat(document.getElementById('limit-price').value) : null;
+    const stopPrice  = state.type === 'STOP_MARKET'  ? parseFloat(document.getElementById('stop-price').value)  : null;
+
+    if (state.demoMode) {
+      simulateOrder(qty, limitPrice, stopPrice);
+    } else {
+      await placeRealOrder(qty, limitPrice, stopPrice);
+    }
+
+    document.getElementById('qty').value = '';
+    if (document.getElementById('limit-price')) document.getElementById('limit-price').value = '';
+    if (document.getElementById('stop-price'))  document.getElementById('stop-price').value  = '';
+    document.getElementById('order-summary').classList.remove('visible');
+  }
+
+  function simulateOrder(qty, limitPrice, stopPrice) {
+    const status   = state.type === 'MARKET' ? 'FILLED' : 'NEW';
+    const orderId  = Math.floor(Math.random() * 9e9) + 1e9;
+    const execPrice = limitPrice || state.price;
+
+    recordOrder({ id: orderId, symbol: state.symbol, side: state.side, type: state.type, qty, execPrice, status });
+
+    const priceStr = limitPrice ? '$' + fmt(limitPrice) : stopPrice ? 'stop $' + fmt(stopPrice) : '@ market';
+    addLog('ok', '[DEMO] ' + state.side + ' ' + qty + ' ' + state.symbol + ' ' + state.type + ' ' + priceStr + ' → ' + status + ' #' + orderId);
+    showToast(status === 'FILLED' ? 'Simulated fill — ID ' + orderId : 'Simulated order placed — ID ' + orderId, 'ok');
+  }
+
+  async function placeRealOrder(qty, limitPrice, stopPrice) {
+    addLog('info', 'Sending order to testnet…');
+    try {
+      const params = new URLSearchParams({
+        symbol: state.symbol, side: state.side, type: state.type,
+        quantity: qty.toString(), timestamp: Date.now(), recvWindow: 5000
+      });
+      if (limitPrice)  { params.set('price', limitPrice.toString()); params.set('timeInForce', 'GTC'); }
+      if (stopPrice)   { params.set('stopPrice', stopPrice.toString()); }
+
+      const sig = await hmacSha256(state.apiSecret, params.toString());
+      params.set('signature', sig);
+
+      const res = await fetch('https://testnet.binancefuture.com/fapi/v1/order', {
+        method: 'POST',
+        headers: { 'X-MBX-APIKEY': state.apiKey, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+      });
+      const data = await res.json();
+
+      if (!res.ok || data.code) {
+        const msg = data.msg || 'Unknown API error';
+        addLog('err', 'API error ' + (data.code || res.status) + ': ' + msg);
+        showToast('Order failed: ' + msg, 'err');
+        return;
+      }
+
+      recordOrder({ id: data.orderId, symbol: data.symbol, side: data.side, type: data.type, qty: parseFloat(data.origQty), execPrice: parseFloat(data.avgPrice || data.price || state.price), status: data.status });
+      addLog('ok', data.side + ' ' + data.origQty + ' ' + data.symbol + ' → ' + data.status + ' #' + data.orderId);
+      showToast(data.status === 'FILLED' ? 'Order filled — ID ' + data.orderId : 'Order placed — ID ' + data.orderId, 'ok');
+    } catch (e) {
+      addLog('err', 'Network error: ' + e.message);
+      showToast('Network error — check console', 'err');
+    }
+  }
+
+  async function hmacSha256(secret, message) {
+    const enc  = new TextEncoder();
+    const key  = await crypto.subtle.importKey('raw', enc.encode(secret), { name:'HMAC', hash:'SHA-256' }, false, ['sign']);
+    const sig  = await crypto.subtle.sign('HMAC', key, enc.encode(message));
+    return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2,'0')).join('');
+  }
+
+  /* ── Record & render order ───────────────────────────────────── */
+  function recordOrder({ id, symbol, side, type, qty, execPrice, status }) {
+    state.orders.unshift({ id, symbol, side, type, qty, execPrice, status });
+    if (status === 'FILLED') {
+      state.fillCount++;
+      state.upnl += (side === 'BUY' ? 1 : -1) * qty * execPrice * 0.0015;
+    } else {
+      state.openCount++;
+    }
+    renderOrders();
+    updateStats();
+  }
+
+  function renderOrders() {
+    const tbody = document.getElementById('orders-tbody');
+    if (!state.orders.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--text-muted);text-align:center;padding:14px;font-size:10px;">No orders yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = state.orders.slice(0, 8).map(o => `
+      <tr>
+        <td>${o.symbol}</td>
+        <td><span class="badge badge-${o.side.toLowerCase()}">${o.side}</span></td>
+        <td style="font-size:10px">${o.type}</td>
+        <td>${o.qty}</td>
+        <td><span class="badge badge-${o.status.toLowerCase()}">${o.status}</span></td>
+      </tr>`).join('');
+  }
+
+  function updateStats() {
+    document.getElementById('open-count').textContent = state.openCount;
+    document.getElementById('fill-count').textContent = state.fillCount;
+    const el = document.getElementById('upnl');
+    el.textContent = (state.upnl >= 0 ? '+' : '-') + '$' + Math.abs(state.upnl).toFixed(2);
+    el.className   = 'sval ' + (state.upnl >= 0 ? 'green' : 'red');
+  }
+
+  /* ── Log & toast ─────────────────────────────────────────────── */
+  function addLog(type, msg) {
+    const box   = document.getElementById('log-box');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry ' + type;
+    entry.innerHTML = '<span class="log-ts">' + ts() + '</span><span class="log-msg">' + msg + '</span>';
+    box.insertBefore(entry, box.firstChild);
+    while (box.children.length > 40) box.removeChild(box.lastChild);
+  }
+
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast ' + type + ' show';
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  /* ── Live price ticker ───────────────────────────────────────── */
+  setInterval(() => {
+    Object.keys(prices).forEach(sym => {
+      prices[sym].p = Math.max(1, prices[sym].p * (1 + (Math.random() - 0.499) * 0.0004));
+      prices[sym].c += (Math.random() - 0.5) * 0.03;
+    });
+    const cur = prices[state.symbol];
+    state.price  = cur.p;
+    state.change = cur.c;
+    document.getElementById('price-main').textContent = fmt(cur.p);
+    const pc = document.getElementById('price-change');
+    pc.textContent = (cur.c >= 0 ? '+' : '') + cur.c.toFixed(2) + '%';
+    pc.className   = 'price-change ' + (cur.c >= 0 ? 'up' : 'down');
+    updateSummary();
+  }, 1500);
+</script>
+</body>
+</html>

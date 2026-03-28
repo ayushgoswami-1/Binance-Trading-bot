@@ -1,0 +1,6 @@
+# Runtime dependencies
+requests>=2.31.0
+
+# Development / testing (optional)
+pytest>=8.0.0
+pytest-mock>=3.12.0
